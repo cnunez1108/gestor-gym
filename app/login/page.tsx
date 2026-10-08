@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -23,56 +24,11 @@ export default function LoginPage() {
       return;
     }
 
-    // Login simulado
-    if (email === "admin@stronghub.com" && password === "123456") {
-      localStorage.setItem(
-        "stronghub_user",
-        JSON.stringify({
-          id: 1,
-          name: "Admin",
-          email,
-          role: "admin",
-          remember,
-        }),
-      );
-
-      router.push("/dashboard");
-      return;
-    }
-
-    if (email === "entrenador@stronghub.com" && password === "123456") {
-      localStorage.setItem(
-        "stronghub_user",
-        JSON.stringify({
-          id: 2,
-          name: "Carlos",
-          email,
-          role: "trainer",
-          remember,
-        }),
-      );
-
-      router.push("/dashboard");
-      return;
-    }
-
-    if (email === "recepcion@stronghub.com" && password === "123456") {
-      localStorage.setItem(
-        "stronghub_user",
-        JSON.stringify({
-          id: 3,
-          name: "María",
-          email,
-          role: "receptionist",
-          remember,
-        }),
-      );
-
-      router.push("/dashboard");
-      return;
-    }
-
-    setError("Correo o contraseña incorrectos.");
+    try {
+      await api('auth/login','POST',{email,password,remember});
+      router.push('/dashboard');
+      router.refresh();
+    } catch (error) { setError((error as Error).message); }
   };
 
   return (
@@ -148,9 +104,7 @@ export default function LoginPage() {
               <span>Recordarme</span>
             </label>
 
-            <button type="button" className="forgot-password">
-              ¿Olvidaste tu contraseña?
-            </button>
+
           </div>
 
           <button type="submit" className="login-button">
@@ -158,13 +112,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="demo-users">
-          <p>Usuarios de prueba</p>
 
-          <span>admin@stronghub.com / 123456</span>
-          <span>entrenador@stronghub.com / 123456</span>
-          <span>recepcion@stronghub.com / 123456</span>
-        </div>
       </div>
     </main>
   );

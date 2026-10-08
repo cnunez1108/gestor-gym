@@ -1,0 +1,28 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { resolve } from 'node:path';
+import Database from 'better-sqlite3';
+import { addDays, membershipStatus, today } from '../lib/dates';
+import { hashPassword, verifyPassword } from '../lib/server/passwords';
+process.env.DATABASE_PATH=resolve('data/unit-tests.sqlite');
+test('Reglas de negocio con SQLite separado',async(t)=>{
+  const {db}=await import('../lib/server/database');
+  const {repository:r}=await import('../lib/server/repositories');
+  const s=await import('../lib/server/services');
+  db().exec('DELETE FROM payments; DELETE FROM memberships; DELETE FROM members; DELETE FROM sessions; DELETE FROM users;');
+  const actor=s.saveUser({name:'Admin',email:'admin@test.local',password:'AdminTest123!',role:'admin'},0).id;
+  await t.test('Hash y verificación de contraseña',()=>{const hash=hashPassword('Clave123!');assert.notEqual(hash,'Clave123!');assert.ok(verifyPassword('Clave123!',hash));assert.ok(!verifyPassword('incorrecta',hash));});
+  await t.test('Correo duplicado y campos obligatorios',()=>{assert.throws(()=>s.saveUser({name:'Otro',email:'ADMIN@test.local',password:'AdminTest123!',role:'admin'},actor),/correo/);assert.throws(()=>s.saveMember({name:''}),/campos/);});
+  const member=s.saveMember({name:'Juan Pérez',identification:'TEST-1',phone:'70000001'}).id;
+  await t.test('Identificación duplicada',()=>assert.throws(()=>s.saveMember({name:'Otro',identification:'TEST-1',phone:'70000002'}),/identificación/));
+  await t.test('Fecha pasada e inválida',()=>{for(const startDate of [addDays(today(),-1),'2026-02-30'])assert.throws(()=>s.createMembership({memberId:member,planId:1,startDate,requestKey:startDate},actor),/fecha|Fecha/);});
+  const input={memberId:member,planId:1,startDate:today(),requestKey:'integrated',amountCents:3000};
+  await t.test('Monto incorrecto sin efectos parciales',()=>{assert.throws(()=>s.createMembership({...input,amountCents:2999},actor),/monto/);assert.equal(r.memberships().length,0);});
+  const membership=s.createMembership(input,actor).id;
+  await t.test('Registro integrado, vigencia y duración',()=>{assert.equal(s.memberships()[0].status,'Activa');assert.equal(s.memberships()[0].expirationDate,addDays(today(),30));assert.equal(r.payments().length,1);});
+  await t.test('Solicitud y pago duplicados',()=>{assert.throws(()=>s.createMembership(input,actor),/solicitud/);assert.throws(()=>s.pay({membershipId:membership,amountCents:3000},actor),/pago/);assert.equal(r.payments().length,1);});
+  await t.test('Pendiente, activa, vencida y límites',()=>{assert.equal(membershipStatus('2026-01-01','2026-01-31',true,'2026-01-01'),'Activa');assert.equal(membershipStatus('2026-01-01','2026-01-31',true,'2026-01-31'),'Vencida');assert.equal(membershipStatus('2026-01-01','2026-01-31',false,'2026-01-02'),'Pendiente');assert.equal(membershipStatus('2026-01-01','2026-01-31',true,'2025-12-31'),'Pendiente');});
+  await t.test('Confirmar pago separado actualiza estado',()=>{const pending=s.createMembership({...input,requestKey:'pending',amountCents:undefined},actor).id;assert.equal(s.memberships()[0].status,'Pendiente');assert.throws(()=>s.pay({membershipId:pending,amountCents:1},actor),/monto/);s.pay({membershipId:pending,amountCents:3000},actor);assert.equal(s.memberships()[0].status,'Activa');});
+  await t.test('Persistencia en otra conexión',()=>{const other=new Database(process.env.DATABASE_PATH!);assert.equal((other.prepare('SELECT COUNT(*) count FROM payments').get() as {count:number}).count,2);other.close();});
+  await t.test('Rollback de nuevo miembro y membresía',()=>{const before=r.members().length;assert.throws(()=>s.createMembership({member:{name:'Rollback',identification:'ROLL',phone:'1'},planId:1,startDate:today(),requestKey:'rollback'},99999));assert.equal(r.members().length,before);});
+});

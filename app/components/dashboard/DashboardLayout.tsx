@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from 'react';
 import { Bell, ChevronDown, UserCircle } from "lucide-react";
+import { api } from "@/lib/api";
 import Sidebar from "../sidebar/sidebar";
 
 interface User {
@@ -18,16 +20,19 @@ export default function DashboardLayout({
   user: User;
 }) {
   const router = useRouter();
+  const [logoutError, setLogoutError] = useState('');
 
-  const handleLogout = () => {
-    localStorage.removeItem("stronghub_user");
-    router.push("/login");
+  const handleLogout = async () => {
+    try {
+      await api('auth/logout','POST',{});
+      router.push('/login');
+      router.refresh();
+    } catch (error) { setLogoutError((error as Error).message); }
   };
 
   const roleName =
     {
       admin: "Administrador",
-      trainer: "Entrenador",
       receptionist: "Recepcionista",
     }[user.role] ?? user.role;
 
@@ -62,7 +67,7 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        <div className="page-content">{children}</div>
+        <div className="page-content">{logoutError && <p role="alert">{logoutError}</p>}{children}</div>
       </main>
     </div>
   );

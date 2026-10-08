@@ -2,13 +2,22 @@
   "name": "my-app",
   "version": "0.1.0",
   "private": true,
+  "engines": { "node": ">=22" },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:init": "tsx --env-file=.env.local scripts/init-db.ts",
+    "db:demo": "tsx --env-file=.env.local scripts/init-db.ts --demo",
+    "test:server": "tsx --test tests/services.test.ts",
+    "test:dates": "tsx --test tests/dates.test.ts",
+    "dev:test": "tsx scripts/test-server.ts",
+    "test:e2e": "cypress run",
+    "cypress:install": "cypress install"
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
     "lucide-react": "^1.33.0",
     "next": "16.3.2",
     "react": "19.2.8",
@@ -16,12 +25,15 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cypress": "^15.21.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   },
   "packageManager": "pnpm@11.23.0"

@@ -24,6 +24,7 @@ export default function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname();
 
   const items = [
+    { label: "Membresías", href: "/membresias", icon: CreditCard, permission: "memberships.view" },
     {
       label: "Inicio",
       href: "/dashboard",
@@ -124,7 +125,7 @@ export default function Sidebar({ role }: SidebarProps) {
         <p>
           StrongHub Gym
           <br />
-          <small>Frontend Demo</small>
+          <small>Aplicación local</small>
         </p>
       </div>
     </aside>

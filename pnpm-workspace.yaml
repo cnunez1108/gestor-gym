@@ -1,3 +1,6 @@
-allowBuilds:
+﻿allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+  cypress: false
   sharp: false
   unrs-resolver: false
